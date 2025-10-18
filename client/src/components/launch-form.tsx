@@ -67,7 +67,8 @@ export function LaunchForm({ initialData }: LaunchFormProps) {
 
   const launchMutation = useMutation({
     mutationFn: async (data: LaunchTokenRequest) => {
-      return await apiRequest("POST", "/api/launch", data);
+      const response = await apiRequest("POST", "/api/launch", data);
+      return response as unknown as { success: boolean; tokenAddress?: string; signature?: string; error?: string };
     },
     onSuccess: (data) => {
       if (data.success) {

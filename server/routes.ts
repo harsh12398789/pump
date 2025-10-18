@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, VersionedTransaction, sendAndConfirmTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import axios from "axios";
 import { launchTokenSchema, type LaunchTokenRequest, type LaunchTokenResponse, type WSMessage, type PumpFunToken } from "@shared/schema";
@@ -274,24 +274,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Deserialize transaction
         const txBuffer = Buffer.from(createResponse.data);
-        const transaction = Transaction.deserialize(txBuffer);
+        const transaction = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
 
         // Sign with both keypairs (wallet and mint)
-        transaction.sign(keypair, mintKeypair);
+        transaction.sign([keypair, mintKeypair]);
 
         // Connect to Solana
         const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
         // Send transaction
-        const signature = await sendAndConfirmTransaction(
-          connection,
-          transaction,
-          [keypair, mintKeypair],
-          {
-            commitment: 'confirmed',
-            maxRetries: 3
-          }
-        );
+        const signature = await connection.sendTransaction(transaction);
 
         console.log("Token created successfully!");
         console.log("Signature:", signature);
