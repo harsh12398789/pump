@@ -38,33 +38,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       broadcastToClients(JSON.stringify(message));
     });
 
-    pumpPortalWs.on("message", (data) => {
+    pumpPortalWs.on("message", async (data) => {
       try {
         const tokenData = JSON.parse(data.toString());
         
-        // Transform PumpPortal data to our schema
+        // Skip subscription confirmation messages
+        if (tokenData.message) {
+          console.log("PumpPortal:", tokenData.message);
+          return;
+        }
+        
+        console.log("New token:", tokenData.name, tokenData.symbol);
+        
+        // Create initial token object without metadata
         const token: PumpFunToken = {
           mint: tokenData.mint || tokenData.signature || "",
           name: tokenData.name || "Unknown Token",
           symbol: tokenData.symbol || "???",
-          description: tokenData.description,
-          image: tokenData.image || tokenData.uri,
+          description: undefined,
+          image: undefined,
           uri: tokenData.uri,
-          twitter: tokenData.twitter,
-          telegram: tokenData.telegram,
-          website: tokenData.website,
+          twitter: undefined,
+          telegram: undefined,
+          website: undefined,
           marketCapSol: tokenData.marketCapSol || tokenData.initialBuy,
           timestamp: Date.now(),
           creator: tokenData.creator || tokenData.traderPublicKey,
           initialBuy: tokenData.initialBuy,
         };
 
-        // Broadcast to all connected clients
+        // Broadcast initial token immediately
         const message: WSMessage = {
           type: 'token',
           data: token
         };
         broadcastToClients(JSON.stringify(message));
+        
+        // Fetch metadata asynchronously without blocking
+        if (tokenData.uri) {
+          (async () => {
+            try {
+              const metadataResponse = await axios.get(tokenData.uri, { 
+                timeout: 10000,
+                headers: { 'Accept': 'application/json' }
+              });
+              const metadata = metadataResponse.data;
+              
+              // Update token with metadata and broadcast again
+              token.description = metadata.description;
+              token.image = metadata.image;
+              token.twitter = metadata.twitter;
+              token.telegram = metadata.telegram;
+              token.website = metadata.website;
+              
+              const updateMessage: WSMessage = {
+                type: 'token',
+                data: token
+              };
+              broadcastToClients(JSON.stringify(updateMessage));
+              console.log("Updated", token.name, "with metadata");
+            } catch (err) {
+              console.log("Could not fetch metadata for", token.name);
+            }
+          })();
+        }
       } catch (error) {
         console.error("Error parsing PumpPortal message:", error);
       }

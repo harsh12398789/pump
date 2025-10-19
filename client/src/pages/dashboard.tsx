@@ -38,9 +38,19 @@ export default function Dashboard() {
         
         if (message.type === 'token' && message.data) {
           setTokens((prev) => {
-            // Add new token to the beginning and limit to 50 tokens
-            const newTokens = [message.data!, ...prev];
-            return newTokens.slice(0, 50);
+            // Check if token already exists (it's an update with metadata)
+            const existingIndex = prev.findIndex(t => t.mint === message.data!.mint);
+            
+            if (existingIndex !== -1) {
+              // Update existing token with new metadata
+              const updated = [...prev];
+              updated[existingIndex] = { ...updated[existingIndex], ...message.data };
+              return updated;
+            } else {
+              // Add new token to the beginning and limit to 50 tokens
+              const newTokens = [message.data!, ...prev];
+              return newTokens.slice(0, 50);
+            }
           });
         } else if (message.type === 'error') {
           console.error('WebSocket error:', message.error);
