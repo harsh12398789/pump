@@ -24,6 +24,11 @@ export function TokenCard({ token, onCopy }: TokenCardProps) {
 
   const timeAgo = formatDistanceToNow(new Date(token.timestamp), { addSuffix: true });
   const isNew = Date.now() - token.timestamp < 5 * 60 * 1000; // 5 minutes
+  
+  // Use proxy URL for images
+  const displayImageUrl = token.mint 
+    ? `https://api-main.uxento.io/api/v1/proxy/image?url=${encodeURIComponent(`https://thumbnails.padre.gg/SOLANA-${token.mint}`)}`
+    : token.image;
 
   return (
     <Card className="overflow-hidden hover-elevate transition-all duration-200" data-testid={`card-token-${token.mint}`}>
@@ -31,9 +36,9 @@ export function TokenCard({ token, onCopy }: TokenCardProps) {
         <div className="flex gap-4">
           {/* Token Image */}
           <div className="flex-shrink-0">
-            {!imageError && token.image ? (
+            {!imageError && displayImageUrl ? (
               <img
-                src={token.image}
+                src={displayImageUrl}
                 alt={token.name}
                 className="w-20 h-20 rounded-lg object-cover bg-muted"
                 onError={() => setImageError(true)}

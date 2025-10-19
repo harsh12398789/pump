@@ -75,11 +75,16 @@ export default function Dashboard() {
   }, [connectWebSocket]);
 
   const handleCopyToken = (token: PumpFunToken) => {
+    // Use proxy URL for images
+    const imageUrl = token.mint 
+      ? `https://api-main.uxento.io/api/v1/proxy/image?url=${encodeURIComponent(`https://thumbnails.padre.gg/SOLANA-${token.mint}`)}`
+      : token.image;
+
     const launchData: Partial<LaunchTokenRequest> = {
       name: token.name,
       symbol: token.symbol,
       description: token.description,
-      imageUrl: token.image,
+      imageUrl: imageUrl,
       twitter: token.twitter,
       telegram: token.telegram,
       website: token.website,

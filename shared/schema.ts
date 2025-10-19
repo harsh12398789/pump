@@ -25,7 +25,7 @@ export const launchTokenSchema = z.object({
   imageUrl: z.string().url("Invalid image URL").optional(),
   twitter: z.string().optional(),
   telegram: z.string().optional(),
-  website: z.string().url("Invalid website URL").optional(),
+  website: z.string().optional(),
   initialBuy: z.number().min(0.01, "Minimum 0.01 SOL").max(10, "Maximum 10 SOL").default(0.1),
   slippage: z.number().min(1).max(50).default(5),
   priorityFee: z.number().min(0.0001).max(0.01).default(0.001),
