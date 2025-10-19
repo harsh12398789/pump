@@ -75,33 +75,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         broadcastToClients(JSON.stringify(message));
         
         // Fetch metadata asynchronously without blocking
-        if (tokenData.uri) {
-          (async () => {
-            try {
-              const metadataResponse = await axios.get(tokenData.uri, { 
-                timeout: 10000,
-                headers: { 'Accept': 'application/json' }
-              });
-              const metadata = metadataResponse.data;
-              
-              // Update token with metadata and broadcast again
-              token.description = metadata.description;
-              token.image = metadata.image;
-              token.twitter = metadata.twitter;
-              token.telegram = metadata.telegram;
-              token.website = metadata.website;
-              
-              const updateMessage: WSMessage = {
-                type: 'token',
-                data: token
-              };
-              broadcastToClients(JSON.stringify(updateMessage));
-              console.log("Updated", token.name, "with metadata");
-            } catch (err) {
-              console.log("Could not fetch metadata for", token.name);
+        (async () => {
+          try {
+            const metadataUri = tokenData.uri;
+            
+            if (!metadataUri) {
+              return;
             }
-          })();
-        }
+            
+            // Try multiple IPFS gateways and other metadata services
+            const urisToTry = [metadataUri];
+            if (metadataUri.includes('ipfs')) {
+              // Extract CID and try different gateways
+              const cidMatch = metadataUri.match(/Qm[a-zA-Z0-9]{44}|b[a-z2-7]{58,}/);
+              if (cidMatch) {
+                const cid = cidMatch[0];
+                urisToTry.push(
+                  `https://cf-ipfs.com/ipfs/${cid}`,
+                  `https://cloudflare-ipfs.com/ipfs/${cid}`,
+                  `https://ipfs.filebase.io/ipfs/${cid}`,
+                  `https://w3s.link/ipfs/${cid}`,
+                  `https://gateway.pinata.cloud/ipfs/${cid}`,
+                  `https://ipfs.io/ipfs/${cid}`
+                );
+              }
+            }
+            
+            let metadata: any = null;
+            for (const uri of urisToTry) {
+              try {
+                const metadataResponse = await axios.get(uri, { 
+                  timeout: 6000,
+                  headers: { 'Accept': 'application/json' }
+                });
+                metadata = metadataResponse.data;
+                break;
+              } catch (err) {
+                continue;
+              }
+            }
+            
+            if (!metadata) {
+              return;
+            }
+            
+            // Update token with metadata and broadcast again
+            token.description = metadata.description || undefined;
+            token.image = metadata.image || undefined;
+            token.twitter = metadata.twitter || undefined;
+            token.telegram = metadata.telegram || undefined;
+            token.website = metadata.website || undefined;
+            
+            const updateMessage: WSMessage = {
+              type: 'token',
+              data: token
+            };
+            broadcastToClients(JSON.stringify(updateMessage));
+            console.log("✓", token.symbol, "| Twitter:", !!metadata.twitter, "| Desc:", !!metadata.description);
+          } catch (err) {
+            // Silent fail
+          }
+        })();
       } catch (error) {
         console.error("Error parsing PumpPortal message:", error);
       }
